@@ -1,0 +1,32 @@
+provider_id: 'openai'
+model: 'gpt-4o'
+temperature: 0.7
+max_tokens: 4096
+default_prompt: |
+  Generate a quiz with {num_questions} multiple-choice questions about {subject} at {difficulty} level. Each question should have {num_options} answer options with only one correct answer.
+
+  Please format the response as valid JSON with the following structure:
+  {
+    "title": "Quiz Title",
+    "subject": "{subject}",
+    "difficulty": "{difficulty}",
+    "questions": [
+      {
+        "question": "Question text here?",
+        "options": [
+          "Option A",
+          "Option B",
+          "Option C",
+          "Option D"
+        ],
+        "correct_answer": 0,
+        "explanation": "Brief explanation of why this is correct"
+      }
+    ]
+  }
+
+  Make sure the questions are educational, accurate, and appropriate for the specified difficulty level. The correct_answer should be the index (0-based) of the correct option in the options array.
+default_subject: 'General Knowledge'
+default_difficulty: 'intermediate'
+default_num_questions: 10
+default_num_options: 4

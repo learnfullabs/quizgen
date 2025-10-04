@@ -1,0 +1,34 @@
+quizgen.admin:
+  title: 'Quiz Generator'
+  description: 'Configure Quiz Generator settings'
+  parent: system.admin_config_development
+  route_name: quizgen.settings
+  weight: 10
+
+quizgen.settings:
+  title: 'Settings'
+  description: 'Configure QuizGen AI and quiz generation settings'
+  parent: quizgen.admin
+  route_name: quizgen.settings
+  weight: 0
+
+quizgen.test_create_node:
+  title: 'Test Node Creation'
+  description: 'Test creating Quiz nodes'
+  parent: quizgen.admin
+  route_name: quizgen.test_create_node
+  weight: 1
+
+quizgen.test_metadata:
+  title: 'Test Metadata Generation'
+  description: 'Test generating quiz metadata with AI'
+  parent: quizgen.admin
+  route_name: quizgen.test_metadata
+  weight: 2
+
+quizgen.test_ai_node:
+  title: 'Test AI Node Creation'
+  description: 'Test creating AI-generated Quiz nodes'
+  parent: quizgen.admin
+  route_name: quizgen.test_ai_node
+  weight: 3

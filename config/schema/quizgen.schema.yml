@@ -1,0 +1,31 @@
+quizgen.settings:
+  type: config_object
+  label: 'QuizGen Settings'
+  mapping:
+    provider_id:
+      type: string
+      label: 'AI Provider ID'
+    model:
+      type: string
+      label: 'AI Model'
+    temperature:
+      type: float
+      label: 'Temperature'
+    max_tokens:
+      type: integer
+      label: 'Max Tokens'
+    default_prompt:
+      type: text
+      label: 'Default Quiz Generation Prompt'
+    default_subject:
+      type: string
+      label: 'Default Subject'
+    default_difficulty:
+      type: string
+      label: 'Default Difficulty Level'
+    default_num_questions:
+      type: integer
+      label: 'Default Number of Questions'
+    default_num_options:
+      type: integer
+      label: 'Default Number of Options'

@@ -1,0 +1,8 @@
+services:
+  quizgen.node_service:
+    class: Drupal\quizgen\QuizNodeService
+    arguments: ['@entity_type.manager', '@logger.factory', '@current_user', '@quizgen.metadata_service']
+
+  quizgen.metadata_service:
+    class: Drupal\quizgen\QuizMetadataService
+    arguments: ['@ai.provider', '@logger.factory', '@file_system', '@config.factory']

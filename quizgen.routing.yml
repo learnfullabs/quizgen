@@ -1,0 +1,31 @@
+quizgen.settings:
+  path: '/admin/config/quizgen/settings'
+  defaults:
+    _form: '\Drupal\quizgen\Form\QuizgenSettingsForm'
+    _title: 'QuizGen Settings'
+  requirements:
+    _permission: 'administer site configuration'
+
+quizgen.test_create_node:
+  path: '/admin/config/quizgen/test-create-node'
+  defaults:
+    _controller: '\Drupal\quizgen\Controller\QuizgenTestController::testCreateQuizNode'
+    _title: 'Test Quiz Node Creation'
+  requirements:
+    _permission: 'administer site configuration'
+
+quizgen.test_metadata:
+  path: '/admin/config/quizgen/test-metadata'
+  defaults:
+    _controller: '\Drupal\quizgen\Controller\QuizgenTestController::testMetadataGeneration'
+    _title: 'Test Quiz Metadata Generation'
+  requirements:
+    _permission: 'administer site configuration'
+
+quizgen.test_ai_node:
+  path: '/admin/config/quizgen/test-ai-node'
+  defaults:
+    _controller: '\Drupal\quizgen\Controller\QuizgenTestController::testCreateAiQuizNode'
+    _title: 'Test AI-Generated Quiz Node Creation'
+  requirements:
+    _permission: 'administer site configuration'
