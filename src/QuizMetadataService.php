@@ -203,26 +203,19 @@ class QuizMetadataService {
       return null;
     }
 
-    // Step 3: Generate the quiz prompt from the topic
-    $quiz_prompt = $this->generatePromptFromTopic($quiz_topic, $base_metadata);
-    if ($quiz_prompt === null) {
-      $this->logger->error('Failed to generate quiz prompt for topic: @topic', [
+    // Step 3: Generate the quiz prompt and title from the topic
+    $prompt_and_title = $this->generatePromptFromTopic($quiz_topic, $base_metadata);
+    if ($prompt_and_title === null) {
+      $this->logger->error('Failed to generate quiz prompt and title for topic: @topic', [
         '@topic' => $quiz_topic,
       ]);
       return null;
     }
 
-    // Step 4: Generate title from the prompt
-    $title = $this->generateTitleFromPrompt($quiz_prompt, $base_metadata);
-    if ($title === null) {
-      $this->logger->error('Failed to generate title from prompt.');
-      return null;
-    }
-
     // Combine all generated content
     $metadata = $base_metadata;
-    $metadata['title'] = $title;
-    $metadata['prompt'] = $quiz_prompt;
+    $metadata['title'] = $prompt_and_title['title'];
+    $metadata['prompt'] = $prompt_and_title['prompt'];
 
     $this->logger->info('Successfully generated complete quiz metadata for topic: @topic', [
       '@topic' => substr($quiz_topic, 0, 100) . (strlen($quiz_topic) > 100 ? '...' : ''),
@@ -417,76 +410,64 @@ class QuizMetadataService {
   }
 
   /**
-   * Step 3: Generate a quiz prompt from a topic using AI.
+   * Step 3: Generate a quiz prompt and title from a topic using AI.
    *
    * @param string $quiz_topic
    *   The quiz topic.
    * @param array $base_metadata
    *   The base metadata for context.
    *
-   * @return string|null
-   *   The generated quiz prompt, or NULL on error.
+   * @return array|null
+   *   Array with 'prompt' and 'title' keys, or NULL on error.
    */
-  protected function generatePromptFromTopic(string $quiz_topic, array $base_metadata): ?string {
+  protected function generatePromptFromTopic(string $quiz_topic, array $base_metadata): ?array {
     $ai_prompt = $this->buildPromptFromTopicPrompt($quiz_topic, $base_metadata);
     
     $response = $this->makeAiRequest($ai_prompt);
     
     if ($response === null) {
-      $this->logger->error('Failed to get AI response for quiz prompt generation.');
+      $this->logger->error('Failed to get AI response for quiz prompt and title generation.');
       return null;
     }
 
-    // Clean the response and extract just the prompt text
-    $cleaned_response = trim($response);
+    // Parse the response to extract prompt and title
+    $lines = explode("\n", trim($response));
+    $prompt = null;
+    $title = null;
     
-    // Remove any markdown formatting or quotes if present
-    $cleaned_response = preg_replace('/^["\'`]+|["\'`]+$/m', '', $cleaned_response);
-    $cleaned_response = trim($cleaned_response);
+    foreach ($lines as $line) {
+      $line = trim($line);
+      if (preg_match('/^PROMPT:\s*(.+)$/i', $line, $matches)) {
+        $prompt = trim($matches[1]);
+      } elseif (preg_match('/^TITLE:\s*(.+)$/i', $line, $matches)) {
+        $title = trim($matches[1]);
+      }
+    }
+    
+    // Clean any markdown formatting or quotes
+    if ($prompt) {
+      $prompt = preg_replace('/^["\'`]+|["\'`]+$/m', '', $prompt);
+      $prompt = trim($prompt);
+    }
+    
+    if ($title) {
+      $title = preg_replace('/^["\'`]+|["\'`]+$/m', '', $title);
+      $title = trim($title);
+    }
 
-    if (empty($cleaned_response)) {
-      $this->logger->error('Empty quiz prompt generated from AI response.');
+    if (empty($prompt) || empty($title)) {
+      $this->logger->error('Failed to parse prompt and/or title from AI response: @response', [
+        '@response' => substr($response, 0, 200) . (strlen($response) > 200 ? '...' : ''),
+      ]);
       return null;
     }
 
-    return $cleaned_response;
+    return [
+      'prompt' => $prompt,
+      'title' => $title,
+    ];
   }
 
-  /**
-   * Step 4: Generate a title from a quiz prompt using AI.
-   *
-   * @param string $quiz_prompt
-   *   The quiz prompt.
-   * @param array $base_metadata
-   *   The base metadata for context.
-   *
-   * @return string|null
-   *   The generated title, or NULL on error.
-   */
-  protected function generateTitleFromPrompt(string $quiz_prompt, array $base_metadata): ?string {
-    $ai_prompt = $this->buildTitleFromPromptPrompt($quiz_prompt, $base_metadata);
-    
-    $response = $this->makeAiRequest($ai_prompt);
-    
-    if ($response === null) {
-      $this->logger->error('Failed to get AI response for title generation.');
-      return null;
-    }
-
-    // Clean the response and extract just the title text
-    $cleaned_response = trim($response);
-    
-    // Remove any markdown formatting or quotes if present
-    $cleaned_response = preg_replace('/^["\'`]+|["\'`]+$/m', '', $cleaned_response);
-    $cleaned_response = trim($cleaned_response);
-
-    if (empty($cleaned_response)) {
-      $this->logger->error('Empty title generated from AI response.');
-      return null;
-    }
-
-    return $cleaned_response;
-  }
 
 
   /**
@@ -670,7 +651,7 @@ Generate only the topic text. Do not include quotes, explanations, or additional
   }
 
   /**
-   * Builds the AI prompt for generating a quiz prompt from a topic.
+   * Builds the AI prompt for generating both a quiz prompt and title from a topic.
    *
    * @param string $quiz_topic
    *   The quiz topic.
@@ -681,66 +662,37 @@ Generate only the topic text. Do not include quotes, explanations, or additional
    *   The formatted AI prompt for step 3.
    */
   protected function buildPromptFromTopicPrompt(string $quiz_topic, array $base_metadata): string {
-    return "Create a concise quiz prompt for the topic: \"{$quiz_topic}\"
+    return "Create a quiz prompt and title for the topic: \"{$quiz_topic}\"
 
-Define what knowledge will be tested and the scope of content. Write professionally for educators.
+Generate TWO items in this exact format:
+
+PROMPT: [Write a concise quiz prompt that defines what knowledge will be tested and the scope of content. Write professionally for educators. Keep under 256 words.]
+
+TITLE: [Write a concise, engaging title (max 100 characters) that reflects the content and is appropriate for the education level. Incorporate the cognitive goal when possible (e.g., \"Understanding...\", \"Analyzing...\", \"Applying...\")]
 
 Examples:
 
 Topic \"canadian provinces\":
-\"Test knowledge of Canada's provinces including capitals, geography, and key facts.\"
+PROMPT: Test knowledge of Canada's provinces including capitals, geography, and key facts.
+TITLE: Understanding Canadian Provinces
 
 Topic \"basic algebra\":
-\"Cover linear equations, variables, and fundamental algebraic concepts.\"
+PROMPT: Cover linear equations, variables, and fundamental algebraic concepts.
+TITLE: Applying Basic Algebra
 
 Topic \"world war ii\":
-\"Examine major events, key figures, causes, and global impact of WWII.\"
-
-Generate only the quiz prompt text in under 256 words. No formatting, quotes, or explanations.
+PROMPT: Examine major events, key figures, causes, and global impact of WWII.
+TITLE: Analyzing World War II
 
 Context:
 - Subject: {$base_metadata['subject']['label']}
 - Education Level: {$base_metadata['education_level']['label']}
 - Difficulty: {$base_metadata['difficulty']['label']}
-- Cognitive Goal: {$base_metadata['cognitive_goal']['label']}";
-  }
-
-  /**
-   * Builds the AI prompt for generating a title from a quiz prompt.
-   *
-   * @param string $quiz_prompt
-   *   The quiz prompt.
-   * @param array $base_metadata
-   *   The base metadata for context.
-   *
-   * @return string
-   *   The formatted AI prompt for step 4.
-   */
-  protected function buildTitleFromPromptPrompt(string $quiz_prompt, array $base_metadata): string {
-    return "Generate a concise, engaging title for a quiz based on the following prompt and metadata.
-
-Quiz Prompt: \"{$quiz_prompt}\"
-
-Metadata Context:
-- Subject: {$base_metadata['subject']['label']}
-- Education Level: {$base_metadata['education_level']['label']}
-- Difficulty: {$base_metadata['difficulty']['label']}
 - Cognitive Goal: {$base_metadata['cognitive_goal']['label']}
 
-The title should:
-1. Be concise (max 100 characters)
-2. Be engaging and clear
-3. Reflect the content and scope described in the prompt
-4. Be appropriate for the education level
-5. Incorporate the cognitive goal when possible (e.g., \"Understanding...\", \"Analyzing...\", \"Applying...\")
-
-Examples:
-- \"Understanding Plant Photosynthesis\" (Science, Grade 9-12, Medium, Understand)
-- \"Applying Quadratic Equations\" (Mathematics, Grade 9-12, Medium, Apply)
-- \"Remembering World Capitals\" (Social Sciences, Grade 6-8, Easy, Remember)
-
-Generate only the title text. Do not include quotes, explanations, or additional formatting.";
+Generate only the PROMPT and TITLE lines as shown above. No additional formatting, quotes, or explanations.";
   }
+
 
 
   /**
