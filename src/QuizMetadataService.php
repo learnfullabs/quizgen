@@ -176,13 +176,14 @@ class QuizMetadataService {
   }
 
   /**
-   * Generates quiz metadata using AI in four steps.
+   * Generates quiz metadata using AI in three steps.
    *
    * @return array|null
    *   Array containing metadata fields, or NULL on error.
    *   Expected structure:
    *   - title: string
    *   - prompt: string (generated quiz prompt)
+   *   - tags: array (array of tag strings)
    *   - subject: array (taxonomy term with id and label)
    *   - education_level: array (taxonomy term with id and label)
    *   - difficulty: array (taxonomy term with id and label)
@@ -203,10 +204,10 @@ class QuizMetadataService {
       return null;
     }
 
-    // Step 3: Generate the quiz prompt and title from the topic
-    $prompt_and_title = $this->generatePromptFromTopic($quiz_topic, $base_metadata);
-    if ($prompt_and_title === null) {
-      $this->logger->error('Failed to generate quiz prompt and title for topic: @topic', [
+    // Step 3: Generate the quiz prompt, title, and tags from the topic
+    $prompt_title_tags = $this->generatePromptFromTopic($quiz_topic, $base_metadata);
+    if ($prompt_title_tags === null) {
+      $this->logger->error('Failed to generate quiz prompt, title, and tags for topic: @topic', [
         '@topic' => $quiz_topic,
       ]);
       return null;
@@ -214,8 +215,9 @@ class QuizMetadataService {
 
     // Combine all generated content
     $metadata = $base_metadata;
-    $metadata['title'] = $prompt_and_title['title'];
-    $metadata['prompt'] = $prompt_and_title['prompt'];
+    $metadata['title'] = $prompt_title_tags['title'];
+    $metadata['prompt'] = $prompt_title_tags['prompt'];
+    $metadata['tags'] = $prompt_title_tags['tags'];
 
     $this->logger->info('Successfully generated complete quiz metadata for topic: @topic', [
       '@topic' => substr($quiz_topic, 0, 100) . (strlen($quiz_topic) > 100 ? '...' : ''),
@@ -410,7 +412,7 @@ class QuizMetadataService {
   }
 
   /**
-   * Step 3: Generate a quiz prompt and title from a topic using AI.
+   * Step 3: Generate a quiz prompt, title, and tags from a topic using AI.
    *
    * @param string $quiz_topic
    *   The quiz topic.
@@ -418,7 +420,7 @@ class QuizMetadataService {
    *   The base metadata for context.
    *
    * @return array|null
-   *   Array with 'prompt' and 'title' keys, or NULL on error.
+   *   Array with 'prompt', 'title', and 'tags' keys, or NULL on error.
    */
   protected function generatePromptFromTopic(string $quiz_topic, array $base_metadata): ?array {
     $ai_prompt = $this->buildPromptFromTopicPrompt($quiz_topic, $base_metadata);
@@ -426,21 +428,25 @@ class QuizMetadataService {
     $response = $this->makeAiRequest($ai_prompt);
     
     if ($response === null) {
-      $this->logger->error('Failed to get AI response for quiz prompt and title generation.');
+      $this->logger->error('Failed to get AI response for quiz prompt, title, and tags generation.');
       return null;
     }
 
-    // Parse the response to extract prompt and title
+    // Parse the response to extract prompt, title, and tags
+    // Take only the FIRST occurrence of each field to handle multiple sets
     $lines = explode("\n", trim($response));
     $prompt = null;
     $title = null;
+    $tags = null;
     
     foreach ($lines as $line) {
       $line = trim($line);
-      if (preg_match('/^PROMPT:\s*(.+)$/i', $line, $matches)) {
+      if ($prompt === null && preg_match('/^PROMPT:\s*(.+)$/i', $line, $matches)) {
         $prompt = trim($matches[1]);
-      } elseif (preg_match('/^TITLE:\s*(.+)$/i', $line, $matches)) {
+      } elseif ($title === null && preg_match('/^TITLE:\s*(.+)$/i', $line, $matches)) {
         $title = trim($matches[1]);
+      } elseif ($tags === null && preg_match('/^TAGS:\s*(.+)$/i', $line, $matches)) {
+        $tags = trim($matches[1]);
       }
     }
     
@@ -454,17 +460,27 @@ class QuizMetadataService {
       $title = preg_replace('/^["\'`]+|["\'`]+$/m', '', $title);
       $title = trim($title);
     }
+    
+    if ($tags) {
+      $tags = preg_replace('/^["\'`]+|["\'`]+$/m', '', $tags);
+      $tags = trim($tags);
+    }
 
-    if (empty($prompt) || empty($title)) {
-      $this->logger->error('Failed to parse prompt and/or title from AI response: @response', [
+    if (empty($prompt) || empty($title) || empty($tags)) {
+      $this->logger->error('Failed to parse prompt, title, and/or tags from AI response: @response', [
         '@response' => substr($response, 0, 200) . (strlen($response) > 200 ? '...' : ''),
       ]);
       return null;
     }
 
+    // Convert tags string to array
+    $tags_array = array_map('trim', explode(',', $tags));
+    $tags_array = array_filter($tags_array); // Remove empty tags
+
     return [
       'prompt' => $prompt,
       'title' => $title,
+      'tags' => $tags_array,
     ];
   }
 
@@ -662,27 +678,32 @@ Generate only the topic text. Do not include quotes, explanations, or additional
    *   The formatted AI prompt for step 3.
    */
   protected function buildPromptFromTopicPrompt(string $quiz_topic, array $base_metadata): string {
-    return "Create a quiz prompt and title for the topic: \"{$quiz_topic}\"
+    return "Create ONE quiz prompt, title, and tags for the topic: \"{$quiz_topic}\"
 
-Generate TWO items in this exact format:
+Generate EXACTLY THREE lines in this format (no more, no less):
 
 PROMPT: [Write a concise quiz prompt that defines what knowledge will be tested and the scope of content. Write professionally for educators. Keep under 256 words.]
 
 TITLE: [Write a concise, engaging title (max 100 characters) that reflects the content and is appropriate for the education level. Incorporate the cognitive goal when possible (e.g., \"Understanding...\", \"Analyzing...\", \"Applying...\")]
+
+TAGS: [Generate 2-6 relevant keywords/tags separated by commas. Use single words or short phrases that describe key concepts, topics, or skills covered in the quiz. Make them searchable and relevant for educators.]
 
 Examples:
 
 Topic \"canadian provinces\":
 PROMPT: Test knowledge of Canada's provinces including capitals, geography, and key facts.
 TITLE: Understanding Canadian Provinces
+TAGS: canada, provinces, capitals, geography, government
 
 Topic \"basic algebra\":
 PROMPT: Cover linear equations, variables, and fundamental algebraic concepts.
 TITLE: Applying Basic Algebra
+TAGS: algebra, equations, variables, mathematics, problem-solving
 
 Topic \"world war ii\":
 PROMPT: Examine major events, key figures, causes, and global impact of WWII.
 TITLE: Analyzing World War II
+TAGS: world war ii, history, warfare, global conflict, 20th century
 
 Context:
 - Subject: {$base_metadata['subject']['label']}
@@ -690,7 +711,7 @@ Context:
 - Difficulty: {$base_metadata['difficulty']['label']}
 - Cognitive Goal: {$base_metadata['cognitive_goal']['label']}
 
-Generate only the PROMPT and TITLE lines as shown above. No additional formatting, quotes, or explanations.";
+IMPORTANT: Generate ONLY ONE set of three lines (PROMPT, TITLE, TAGS). Do not provide multiple versions or alternatives. Stop after the TAGS line.";
   }
 
 

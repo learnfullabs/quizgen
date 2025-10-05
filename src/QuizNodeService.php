@@ -78,11 +78,13 @@ class QuizNodeService {
    * @param array $taxonomy_fields
    *   Optional taxonomy field values with term IDs.
    *   Expected structure: ['field_subject' => term_id, 'field_education_level' => term_id, etc.]
+   * @param array $tags
+   *   Optional array of tag strings for the field_tags field.
    *
    * @return \Drupal\node\Entity\Node|null
    *   The created node or NULL on failure.
    */
-  public function createQuizNode(string $title, string $quiz_prompt, int $author_uid = NULL, array $taxonomy_fields = []): ?Node {
+  public function createQuizNode(string $title, string $quiz_prompt, int $author_uid = NULL, array $taxonomy_fields = [], array $tags = []): ?Node {
     try {
       // Use provided author UID or current user
       $uid = $author_uid ?? $this->currentUser->id();
@@ -108,11 +110,70 @@ class QuizNodeService {
         }
       }
 
-      // Create the node
+      // Create the node first
       $node = Node::create($node_data);
+
+      // Add tags after node creation using the field API
+      if (!empty($tags)) {
+        $this->loggerFactory->get('quizgen')->info('Attempting to set taxonomy tags: @tags', [
+          '@tags' => implode(', ', $tags),
+        ]);
+        
+        // For taxonomy reference fields with auto_create, we can use target_id format
+        // The auto_create feature will create new terms if they don't exist
+        $tag_references = [];
+        
+        foreach ($tags as $tag_name) {
+          // Try to find existing term first
+          $existing_terms = $this->entityTypeManager
+            ->getStorage('taxonomy_term')
+            ->loadByProperties([
+              'name' => $tag_name,
+              'vid' => 'tags', // vocabulary machine name
+            ]);
+          
+          if (!empty($existing_terms)) {
+            // Use existing term
+            $term = reset($existing_terms);
+            $tag_references[] = ['target_id' => $term->id()];
+            $this->loggerFactory->get('quizgen')->info('Using existing tag term: @tag (ID: @id)', [
+              '@tag' => $tag_name,
+              '@id' => $term->id(),
+            ]);
+          } else {
+            // Create new taxonomy term
+            $new_term = $this->entityTypeManager
+              ->getStorage('taxonomy_term')
+              ->create([
+                'name' => $tag_name,
+                'vid' => 'tags',
+              ]);
+            $new_term->save();
+            
+            $tag_references[] = ['target_id' => $new_term->id()];
+            $this->loggerFactory->get('quizgen')->info('Created new tag term: @tag (ID: @id)', [
+              '@tag' => $tag_name,
+              '@id' => $new_term->id(),
+            ]);
+          }
+        }
+        
+        $node->set('field_tags', $tag_references);
+        $this->loggerFactory->get('quizgen')->info('Set @count tag references on node', [
+          '@count' => count($tag_references),
+        ]);
+      }
 
       // Save the node
       $node->save();
+
+      // Verify tags were saved (for debugging)
+      if (!empty($tags)) {
+        $saved_tags = $node->get('field_tags')->getValue();
+        $this->loggerFactory->get('quizgen')->info('Tags verification - Saved field_tags value: @saved_tags', [
+          '@saved_tags' => json_encode($saved_tags),
+        ]);
+      }
 
       // Log the creation
       $this->loggerFactory->get('quizgen')->info(
@@ -169,17 +230,19 @@ class QuizNodeService {
         $metadata['title'],
         $metadata['prompt'],
         $author_uid,
-        $taxonomy_fields
+        $taxonomy_fields,
+        $metadata['tags']
       );
 
       if ($node) {
         $this->loggerFactory->get('quizgen')->info(
-          'Created AI-generated Quiz node with ID @nid, subject "@subject", level "@level", difficulty "@difficulty"',
+          'Created AI-generated Quiz node with ID @nid, subject "@subject", level "@level", difficulty "@difficulty", tags: @tags',
           [
             '@nid' => $node->id(),
             '@subject' => $metadata['subject']['label'],
             '@level' => $metadata['education_level']['label'],
             '@difficulty' => $metadata['difficulty']['label'],
+            '@tags' => implode(', ', $metadata['tags']),
           ]
         );
       }
