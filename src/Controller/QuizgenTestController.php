@@ -297,4 +297,92 @@ class QuizgenTestController extends ControllerBase {
     ];
   }
 
+  /**
+   * Test cron quiz generation functionality.
+   *
+   * @return array
+   *   A render array for the test page.
+   */
+  public function testCronGeneration() {
+    $request = \Drupal::request();
+    $trigger_cron = $request->query->get('trigger');
+    
+    $items = [];
+    $status = 'info';
+    
+    // Get current cron settings
+    $config = \Drupal::config('quizgen.settings');
+    $cron_enabled = $config->get('cron_generation_enabled') ?? TRUE;
+    $interval = $config->get('cron_generation_interval') ?? 600;
+    $last_run = \Drupal::state()->get('quizgen.last_cron_run', 0);
+    
+    $items[] = $this->t('Cron Generation Status: @status', [
+      '@status' => $cron_enabled ? 'Enabled' : 'Disabled'
+    ]);
+    $items[] = $this->t('Generation Interval: @interval seconds (@minutes minutes)', [
+      '@interval' => $interval,
+      '@minutes' => round($interval / 60, 1)
+    ]);
+    
+    if ($last_run > 0) {
+      $items[] = $this->t('Last Generation: @time', [
+        '@time' => \Drupal::service('date.formatter')->format($last_run, 'medium')
+      ]);
+    } else {
+      $items[] = $this->t('No cron generation has run yet');
+    }
+    
+    if ($trigger_cron === 'yes') {
+      try {
+        $this->messenger()->addStatus($this->t('Triggering cron quiz generation...'));
+        
+        // Manually call the cron function
+        quizgen_cron();
+        
+        $this->messenger()->addStatus($this->t('Cron function executed successfully. Check the results above.'));
+        $status = 'success';
+        
+        // Refresh the last run time
+        $new_last_run = \Drupal::state()->get('quizgen.last_cron_run', 0);
+        if ($new_last_run > $last_run) {
+          $items[] = $this->t('✓ New quiz generated at: @time', [
+            '@time' => \Drupal::service('date.formatter')->format($new_last_run, 'medium')
+          ]);
+        } else {
+          $items[] = $this->t('No new quiz was generated (may be due to interval restrictions)');
+        }
+        
+      } catch (\Exception $e) {
+        $this->messenger()->addError($this->t('Error during cron execution: @error', ['@error' => $e->getMessage()]));
+        $status = 'error';
+        $items[] = $this->t('Exception occurred: @error', ['@error' => $e->getMessage()]);
+      }
+    } else {
+      $items[] = $this->t('Click the button below to manually trigger cron quiz generation');
+      $items[] = $this->t('This will:');
+      $items[] = $this->t('- Check if cron generation is enabled');
+      $items[] = $this->t('- Verify the time interval has passed');
+      $items[] = $this->t('- Generate a new quiz node using AI metadata');
+      $items[] = $this->t('- Update the last run timestamp');
+    }
+
+    $suffix = '<div style="margin-top: 20px;">';
+    if ($status !== 'success') {
+      $suffix .= '<p><a href="?trigger=yes" class="button button--primary">Trigger Cron Generation</a></p>';
+    } else {
+      $suffix .= '<p><a href="?">Test Again</a></p>';
+    }
+    $suffix .= '<p><a href="/admin/config/quizgen/settings">Configure Cron Settings</a> | ';
+    $suffix .= '<a href="/admin/config/quizgen/test-ai-node">AI Node Test</a> | ';
+    $suffix .= '<a href="/admin/config/quizgen/test-metadata">Metadata Test</a></p>';
+    $suffix .= '</div>';
+
+    return [
+      '#theme' => 'item_list',
+      '#title' => $this->t('Cron Quiz Generation Test'),
+      '#items' => $items,
+      '#suffix' => $suffix,
+    ];
+  }
+
 }

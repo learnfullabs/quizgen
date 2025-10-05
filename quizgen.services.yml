@@ -6,3 +6,8 @@ services:
   quizgen.metadata_service:
     class: Drupal\quizgen\QuizMetadataService
     arguments: ['@ai.provider', '@logger.factory', '@file_system', '@config.factory']
+
+  quizgen.http_client_factory:
+    class: Drupal\quizgen\HttpClientFactoryDecorator
+    decorates: http_client_factory
+    arguments: ['@quizgen.http_client_factory.inner', '@config.factory']

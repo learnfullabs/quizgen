@@ -84,11 +84,13 @@ class QuizMetadataService {
    *   The AI model to use (uses config default if not specified).
    * @param float $temperature
    *   The temperature setting for the AI request (uses config default if not specified).
+   * @param int $timeout
+   *   The timeout in seconds for the AI request (uses config default if not specified).
    *
    * @return string|null
    *   The AI response text, or NULL on error.
    */
-  public function makeAiRequest(string $message = 'hello', string $provider_id = '', string $model = '', float $temperature = 0): ?string {
+  public function makeAiRequest(string $message = 'hello', string $provider_id = '', string $model = '', float $temperature = 0, int $timeout = 0): ?string {
     $start_time = microtime(true);
     
     // Get configuration settings.
@@ -99,23 +101,42 @@ class QuizMetadataService {
     $model = $model ?: ($config_settings->get('model') ?? 'gpt-4o');
     $temperature = $temperature ?: ($config_settings->get('temperature') ?? 0.7);
     $max_tokens = $config_settings->get('max_tokens') ?? 4096;
+    $timeout = $timeout ?: ($config_settings->get('timeout') ?? 90);
+    
+    // Ensure temperature, max_tokens, and timeout have valid values even if config is empty.
+    $temperature = $temperature ?: 0.7;
+    $max_tokens = $max_tokens ?: 4096;
+    $timeout = $timeout ?: 90;
     
     try {
+      // Check if we're using GPT-5 model (which doesn't support temperature and max_tokens).
+      $is_gpt5 = strpos(strtolower($model), 'gpt-5') === 0;
+      
       // Configuration for the AI provider.
       $config = [
-        "max_tokens" => $max_tokens,
-        "temperature" => $temperature,
         "frequency_penalty" => 0,
         "presence_penalty" => 0,
         "top_p" => 1,
       ];
+      
+      // Only add temperature and max_tokens for non-GPT-5 models.
+      if (!$is_gpt5) {
+        $config["temperature"] = $temperature;
+        $config["max_tokens"] = $max_tokens;
+      }
+      
       // Create a chat input with the provided message.
       $input = new ChatInput([
         new ChatMessage("user", $message),
       ]);
 
-      // Get the AI provider service and create an instance.
-      $ai_provider = $this->aiProviderManager->createInstance($provider_id);
+      // Get the AI provider service and create an instance with custom timeout.
+      $provider_config = [
+        'http_client_options' => [
+          'timeout' => $timeout,
+        ],
+      ];
+      $ai_provider = $this->aiProviderManager->createInstance($provider_id, $provider_config);
       $ai_provider->setConfiguration($config);
       
       // Make the chat request.
@@ -320,8 +341,8 @@ class QuizMetadataService {
 
     $education_levels = [
       ['id' => 1, 'label' => 'Any Level'],
-      ['id' => 2, 'label' => 'Pre-K to Grade 3'],
-      ['id' => 3, 'label' => 'Grade 3-6'],
+      ['id' => 2, 'label' => 'Pre-K to Grade 2'],
+      ['id' => 3, 'label' => 'Grade 3-5'],
       ['id' => 4, 'label' => 'Grade 6-8'],
       ['id' => 5, 'label' => 'Grade 9-12'],
       ['id' => 6, 'label' => 'Undergraduate'],
@@ -469,50 +490,128 @@ class QuizMetadataService {
 
 
   /**
+   * Generates random education level, subject, and difficulty combination using local PHP logic.
+   *
+   * @return array
+   *   Array containing education_level, subject, and difficulty with id and label keys.
+   */
+  protected function generateEducationLevelSubjectAndDifficulty(): array {
+    $education_levels = [
+      1 => "Any Level (general knowledge, broad appeal)",
+      2 => "Pre-K to Grade 2 (early childhood, basic concepts)",
+      3 => "Grade 3-5 (elementary, foundational skills)",
+      4 => "Grade 6-8 (middle school, developing complexity)",
+      5 => "Grade 9-12 (high school, advanced concepts)",
+      6 => "Undergraduate (college-level, specialized knowledge)",
+      7 => "Graduate (advanced study, research-level)",
+      8 => "Adult Learning (professional development, continuing education)"
+    ];
+
+    $subjects = [
+      9  => "Arts & Humanities",
+      10 => "Business & Economics",
+      11 => "Technology & Computer Science",
+      12 => "Education",
+      13 => "Health & Physical Education",
+      14 => "Language & Literacy",
+      15 => "Law & Political Science",
+      16 => "Mathematics",
+      17 => "Science",
+      18 => "Social Studies",
+      19 => "Professional & Career Studies",
+      20 => "Interdisciplinary / Other",
+      30 => "Environmental & Earth Studies",
+      31 => "Life Skills & Personal Development",
+    ];
+
+    $difficulties = [
+      21 => "Easy (basic recall, simple concepts, introductory level)",
+      22 => "Medium (moderate complexity, some analysis required)",
+      23 => "Hard (advanced concepts, complex problem-solving)",
+    ];
+
+    // Map education levels to appropriate subjects
+    $gradeToSubjects = [
+      1 => [9,10,11,13,14,16,17,18,20,30,31], // Any Level - exclude Law/Education/Professional
+      2 => [9,11,13,14,16,17,18,20,30,31],     // Pre-K to Grade 2 - basic subjects
+      3 => [9,10,11,13,14,16,17,18,20,30,31],  // Grade 3-5 - add Business basics
+      4 => [9,10,11,13,14,15,16,17,18,20,30,31], // Grade 6-8 - add Law/Political Science
+      5 => [9,10,11,13,14,15,16,17,18,19,20,30,31], // Grade 9-12 - add Professional Studies
+      6 => [9,10,11,12,13,14,15,16,17,18,19,20,30,31], // Undergraduate - add Education
+      7 => [9,10,11,12,13,14,15,16,17,18,19,20,30,31], // Graduate - all subjects
+      8 => [9,10,11,12,13,14,15,16,17,18,19,20,30,31], // Adult Learning - all subjects
+    ];
+
+    // Pick random education level
+    $education_id = array_rand($education_levels);
+    $education_label = $education_levels[$education_id];
+
+    // Pick random subject appropriate for the education level
+    $available_subjects = $gradeToSubjects[$education_id];
+    $subject_id = $available_subjects[array_rand($available_subjects)];
+    $subject_label = $subjects[$subject_id];
+
+    // Pick random difficulty with weighted selection (favoring Medium)
+    // Weight: Easy=1, Medium=2, Hard=1 (total=4)
+    $difficulty_weights = [
+      21 => 1,  // Easy
+      22 => 4,  // Medium
+      23 => 1   // Hard
+    ];
+
+    $expanded_difficulties = [];
+    foreach ($difficulty_weights as $id => $weight) {
+      for ($i = 0; $i < $weight; $i++) {
+        $expanded_difficulties[] = $id;
+      }
+    }
+
+    $difficulty_id = $expanded_difficulties[array_rand($expanded_difficulties)];
+    $difficulty_label = $difficulties[$difficulty_id];
+
+    return [
+      'education_level' => [
+        'id' => $education_id,
+        'label' => $education_label
+      ],
+      'subject' => [
+        'id' => $subject_id,
+        'label' => $subject_label
+      ],
+      'difficulty' => [
+        'id' => $difficulty_id,
+        'label' => $difficulty_label
+      ]
+    ];
+  }
+
+  /**
    * Builds the AI prompt for generating random base metadata.
    *
    * @return string
    *   The formatted AI prompt for step 1.
    */
   protected function buildBaseMetadataPrompt(): string {
-    // Add some randomness by including timestamp
-    $timestamp = time();
-    $random_seed = $timestamp % 1000;
+    // Pre-select education level, subject, and difficulty using local PHP logic
+    $preselected = $this->generateEducationLevelSubjectAndDifficulty();
+    $education_level = $preselected['education_level'];
+    $subject = $preselected['subject'];
+    $difficulty = $preselected['difficulty'];
     
-    return "Generate ONE random educational quiz metadata combination. Use the timestamp seed {$random_seed} to make a varied selection. Pick ONE option from each category to create a single, educationally appropriate combination.
+    return "Generate ONE educational quiz metadata combination using COGNITIVE GOAL from the list below. Make sure the combination is educationally appropriate.
 
-Select ONE term from EACH category below:
+REQUIRED EDUCATION LEVEL (already selected):
+- {$education_level['id']}: {$education_level['label']}
 
-SUBJECTS (choose one - vary your selection):
-- 9: Arts & Humanities (art history, philosophy, music theory, literature analysis)
-- 10: Business & Economics (finance, marketing, economics, entrepreneurship)
-- 11: Computer Science & Technology (programming, algorithms, cybersecurity, AI)
-- 12: Education (pedagogy, learning theory, curriculum design)
-- 13: Health & Medicine (anatomy, nutrition, medical procedures, public health)
-- 14: Language & Literature (grammar, poetry, creative writing, linguistics)
-- 15: Law & Political Science (constitutional law, government, political theory)
-- 16: Mathematics & Statistics (algebra, geometry, calculus, probability)
-- 17: Science (biology, chemistry, physics, earth science)
-- 18: Social Sciences (psychology, sociology, anthropology, geography)
-- 19: Professional Studies (career skills, workplace training, certification prep)
-- 20: Other (interdisciplinary, specialized topics)
+REQUIRED SUBJECT (already selected):
+- {$subject['id']}: {$subject['label']}
 
-EDUCATION LEVELS (choose one - mix it up):
-- 1: Any Level (general knowledge, broad appeal)
-- 2: Pre-K to Grade 3 (early childhood, basic concepts)
-- 3: Grade 3-6 (elementary, foundational skills)
-- 4: Grade 6-8 (middle school, developing complexity)
-- 5: Grade 9-12 (high school, advanced concepts)
-- 6: Undergraduate (college-level, specialized knowledge)
-- 7: Graduate (advanced study, research-level)
-- 8: Adult Learning (professional development, continuing education)
+REQUIRED DIFFICULTY LEVEL (already selected):
+- {$difficulty['id']}: {$difficulty['label']}
 
-DIFFICULTY LEVELS (choose one - distribute evenly):
-- 21: Easy (basic recall, simple concepts, introductory level)
-- 22: Medium (moderate complexity, some analysis required)
-- 23: Hard (advanced concepts, complex problem-solving)
+Now choose COGNITIVE GOAL:
 
-COGNITIVE GOALS (choose one - rotate through options):
+COGNITIVE GOALS (choose one):
 - 24: Remember (recall facts, memorize information)
 - 25: Understand (comprehend concepts, explain ideas)
 - 26: Apply (use knowledge in new situations)
@@ -520,17 +619,11 @@ COGNITIVE GOALS (choose one - rotate through options):
 - 28: Evaluate (make judgments, assess quality)
 - 29: Create (produce new content, synthesize ideas)
 
-VALID COMBINATIONS EXAMPLES:
-- Arts & Humanities + Grade 6-8 + Easy + Remember
-- Computer Science + Undergraduate + Hard + Create
-- Health & Medicine + Grade 3-6 + Medium + Understand
-- Mathematics + Graduate + Hard + Analyze
-
 Respond with EXACTLY this JSON format (replace the values but keep the structure):
 {
-  \"subject\": {\"id\": 17, \"label\": \"Science\"},
-  \"education_level\": {\"id\": 5, \"label\": \"Grade 9-12\"},
-  \"difficulty\": {\"id\": 22, \"label\": \"Medium\"},
+  \"subject\": {\"id\": {$subject['id']}, \"label\": \"{$subject['label']}\"},
+  \"education_level\": {\"id\": {$education_level['id']}, \"label\": \"{$education_level['label']}\"},
+  \"difficulty\": {\"id\": {$difficulty['id']}, \"label\": \"{$difficulty['label']}\"},
   \"cognitive_goal\": {\"id\": 25, \"label\": \"Understand\"}
 }
 
@@ -538,8 +631,10 @@ CRITICAL REQUIREMENTS:
 - Respond with EXACTLY ONE JSON object, no additional text or multiple objects
 - Use the exact field names: subject, education_level, difficulty, cognitive_goal
 - Each field must have both \"id\" (integer) and \"label\" (string)
-- Make educationally appropriate combinations
-- DO NOT generate multiple JSON objects - only ONE!";
+- The subject MUST be exactly: {\"id\": {$subject['id']}, \"label\": \"{$subject['label']}\"}
+- The education_level MUST be exactly: {\"id\": {$education_level['id']}, \"label\": \"{$education_level['label']}\"}
+- The difficulty MUST be exactly: {\"id\": {$difficulty['id']}, \"label\": \"{$difficulty['label']}\"}
+- Make educationally appropriate cognitive goal selection for the given requirements";
   }
 
   /**
@@ -586,37 +681,28 @@ Generate only the topic text. Do not include quotes, explanations, or additional
    *   The formatted AI prompt for step 3.
    */
   protected function buildPromptFromTopicPrompt(string $quiz_topic, array $base_metadata): string {
-    return "You are an experienced educator creating a quiz prompt. Generate a comprehensive, educational quiz prompt based on the following topic.
+    return "Create a concise quiz prompt for the topic: \"{$quiz_topic}\"
 
-Topic: \"{$quiz_topic}\"
+Define what knowledge will be tested and the scope of content. Write professionally for educators.
 
-Your task is to create a detailed quiz prompt that:
-1. Clearly defines what knowledge will be tested
-2. Specifies the scope and focus of the quiz content
-3. Is written in a professional, educational tone
-4. Provides enough detail for quiz generation
-5. Includes appropriate context and learning objectives
+Examples:
 
-Examples of good quiz prompts:
+Topic \"canadian provinces\":
+\"Test knowledge of Canada's provinces including capitals, geography, and key facts.\"
 
-For topic \"canadian provinces\":
-\"Create a comprehensive quiz testing knowledge of Canada's provinces and territories. Include questions about provincial capitals, major geographical features, population centers, economic activities, and historical significance. Focus on factual recall and basic understanding suitable for middle to high school students.\"
+Topic \"basic algebra\":
+\"Cover linear equations, variables, and fundamental algebraic concepts.\"
 
-For topic \"basic algebra\":
-\"Generate an algebra quiz covering fundamental concepts including solving linear equations, working with variables, basic graphing, and simple word problems. Questions should test both computational skills and conceptual understanding of algebraic principles. Appropriate for students who have completed pre-algebra.\"
+Topic \"world war ii\":
+\"Examine major events, key figures, causes, and global impact of WWII.\"
 
-For topic \"world war ii\":
-\"Develop a World War II history quiz examining major events, key figures, causes and consequences, and global impact. Include questions about timeline, battles, political decisions, and social changes. Focus on critical thinking and historical analysis skills appropriate for high school level.\"
+Generate only the quiz prompt text in under 256 words. No formatting, quotes, or explanations.
 
-Generate only the quiz prompt text. Do not include any additional formatting, quotes, or explanations.
-
-Context for alignment:
+Context:
 - Subject: {$base_metadata['subject']['label']}
 - Education Level: {$base_metadata['education_level']['label']}
 - Difficulty: {$base_metadata['difficulty']['label']}
-- Cognitive Goal: {$base_metadata['cognitive_goal']['label']}
-
-Ensure the prompt matches these specifications.";
+- Cognitive Goal: {$base_metadata['cognitive_goal']['label']}";
   }
 
   /**

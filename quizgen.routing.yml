@@ -29,3 +29,11 @@ quizgen.test_ai_node:
     _title: 'Test AI-Generated Quiz Node Creation'
   requirements:
     _permission: 'administer site configuration'
+
+quizgen.test_cron:
+  path: '/admin/config/quizgen/test-cron'
+  defaults:
+    _controller: '\Drupal\quizgen\Controller\QuizgenTestController::testCronGeneration'
+    _title: 'Test Cron Quiz Generation'
+  requirements:
+    _permission: 'administer site configuration'

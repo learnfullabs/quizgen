@@ -4,3 +4,86 @@
  * @file
  * Contains quizgen.module.
  */
+
+use Drupal\Core\Logger\RfcLogLevel;
+
+/**
+ * Implements hook_cron().
+ *
+ * Automatically generates quiz nodes using AI-generated metadata.
+ * Runs every 10 minutes as configured by Drupal's cron system.
+ */
+function quizgen_cron() {
+  $config = \Drupal::config('quizgen.settings');
+  $logger = \Drupal::logger('quizgen');
+  
+  // Check if cron quiz generation is enabled (default: enabled)
+  $cron_enabled = $config->get('cron_generation_enabled') ?? TRUE;
+  
+  if (!$cron_enabled) {
+    $logger->info('Cron quiz generation is disabled in module settings.');
+    return;
+  }
+  
+  $current_time = \Drupal::time()->getRequestTime();
+  
+  try {
+    // Get the quiz node service
+    $quiz_node_service = \Drupal::service('quizgen.node_service');
+    
+    // Generate a new quiz node with AI-generated metadata
+    $node = $quiz_node_service->createAiGeneratedQuizNode(1); // Use admin user (UID 1)
+    
+    if ($node) {
+      // Update the last run time
+      \Drupal::state()->set('quizgen.last_cron_run', $current_time);
+      
+      $logger->info('Cron successfully generated quiz node @nid with title "@title"', [
+        '@nid' => $node->id(),
+        '@title' => $node->getTitle(),
+      ]);
+      
+      // Log additional metadata for tracking
+      if ($node->hasField('field_subject') && !$node->get('field_subject')->isEmpty()) {
+        $subject_term = $node->get('field_subject')->entity;
+        $subject_name = $subject_term ? $subject_term->getName() : 'Unknown';
+        
+        $logger->info('Generated quiz details - Subject: @subject, Node ID: @nid', [
+          '@subject' => $subject_name,
+          '@nid' => $node->id(),
+        ]);
+      }
+      
+    } else {
+      $logger->error('Cron failed to generate quiz node - createAiGeneratedQuizNode returned NULL');
+    }
+    
+  } catch (\Exception $e) {
+    $logger->error('Cron quiz generation failed with exception: @error', [
+      '@error' => $e->getMessage(),
+    ]);
+  }
+}
+
+/**
+ * Implements hook_ai_provider_alter().
+ *
+ * Alters AI provider configurations to use custom timeout settings.
+ */
+function quizgen_ai_provider_alter(&$definitions) {
+  $config = \Drupal::config('quizgen.settings');
+  $custom_timeout = $config->get('timeout') ?? 120;
+  
+  // Apply custom timeout to all AI providers
+  foreach ($definitions as $provider_id => &$definition) {
+    if (!isset($definition['http_client_options'])) {
+      $definition['http_client_options'] = [];
+    }
+    
+    // Override timeout if not set or if it's the default 60 seconds
+    if (!isset($definition['http_client_options']['timeout']) || 
+        $definition['http_client_options']['timeout'] <= 60) {
+      $definition['http_client_options']['timeout'] = $custom_timeout;
+    }
+  }
+}
