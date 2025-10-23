@@ -1,0 +1,31 @@
+{
+    "name": "learnfullabs/quizgen",
+    "type": "drupal-custom-module",
+    "description": "A Drupal module that integrates with the AI module to generate quiz content using AI providers with configurable parameters and Bloom's taxonomy support",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://github.com/learnfullabs/quizgen",
+    "support": {
+        "issues": "https://github.com/learnfullabs/quizgen/issues",
+        "source": "https://github.com/learnfullabs/quizgen"
+    },
+    "authors": [
+        {
+            "name": "Learnful Labs",
+            "homepage": "https://learnful.io"
+        }
+    ],
+    "keywords": [
+        "drupal",
+        "module",
+        "ai",
+        "quiz",
+        "generator",
+        "education",
+        "blooms-taxonomy"
+    ],
+    "require": {
+        "php": ">=8.1",
+        "drupal/core": "^10.2 || ^11",
+        "drupal/ai": "^1.1"
+    }
+}

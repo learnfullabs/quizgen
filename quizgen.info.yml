@@ -1,7 +1,7 @@
 name: Quiz Generator
 type: module
 description: A module that integrates with the AI module to generate quiz content using AI providers.
-package: Custom
+package: Synth OER
 core_version_requirement: ^10.2 || ^11
 dependencies:
   - ai:ai
