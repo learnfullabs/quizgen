@@ -291,10 +291,10 @@ class QuizMetadataService {
 
     // Validate term IDs are within expected ranges.
     $valid_term_ids = [
-      'subject' => [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-      'education_level' => [1, 2, 3, 4, 5, 6, 7, 8],
-      'difficulty' => [21, 22, 23],
-      'cognitive_goal' => [24, 25, 26, 27, 28, 29],
+      'subject' => [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
+      'education_level' => [15, 16, 17, 18, 19, 20, 21, 22],
+      'difficulty' => [12, 13, 14],
+      'cognitive_goal' => [6, 7, 8, 9, 10, 11],
     ];
 
     foreach ($required_fields as $field) {
@@ -320,44 +320,46 @@ class QuizMetadataService {
   protected function getFallbackBaseMetadata(): array {
     // Define valid options
     $subjects = [
-      ['id' => 9, 'label' => 'Arts & Humanities'],
-      ['id' => 10, 'label' => 'Business & Economics'],
-      ['id' => 11, 'label' => 'Computer Science & Technology'],
-      ['id' => 12, 'label' => 'Education'],
-      ['id' => 13, 'label' => 'Health & Medicine'],
-      ['id' => 14, 'label' => 'Language & Literature'],
-      ['id' => 15, 'label' => 'Law & Political Science'],
-      ['id' => 16, 'label' => 'Mathematics & Statistics'],
-      ['id' => 17, 'label' => 'Science'],
-      ['id' => 18, 'label' => 'Social Sciences'],
-      ['id' => 19, 'label' => 'Professional Studies'],
-      ['id' => 20, 'label' => 'Other'],
+      ['id' => 23, 'label' => 'Arts & Humanities'],
+      ['id' => 25, 'label' => 'Business & Economics'],
+      ['id' => 26, 'label' => 'Education'],
+      ['id' => 27, 'label' => 'Environmental & Earth Studies'],
+      ['id' => 28, 'label' => 'Health & Physical Education'],
+      ['id' => 36, 'label' => 'Interdisciplinary / Other'],
+      ['id' => 29, 'label' => 'Language & Literacy'],
+      ['id' => 30, 'label' => 'Law & Political Science'],
+      ['id' => 24, 'label' => 'Life Skills & Personal Development'],
+      ['id' => 31, 'label' => 'Mathematics'],
+      ['id' => 32, 'label' => 'Professional & Career Studies'],
+      ['id' => 33, 'label' => 'Science'],
+      ['id' => 34, 'label' => 'Social Studies'],
+      ['id' => 35, 'label' => 'Technology & Computer Science'],
     ];
 
     $education_levels = [
-      ['id' => 1, 'label' => 'Any Level'],
-      ['id' => 2, 'label' => 'Pre-K to Grade 2'],
-      ['id' => 3, 'label' => 'Grade 3-5'],
-      ['id' => 4, 'label' => 'Grade 6-8'],
-      ['id' => 5, 'label' => 'Grade 9-12'],
-      ['id' => 6, 'label' => 'Undergraduate'],
-      ['id' => 7, 'label' => 'Graduate'],
-      ['id' => 8, 'label' => 'Adult Learning'],
+      ['id' => 22, 'label' => 'Adult Learning'],
+      ['id' => 15, 'label' => 'Any Level'],
+      ['id' => 17, 'label' => 'Grade 3-5'],
+      ['id' => 18, 'label' => 'Grade 6-8'],
+      ['id' => 19, 'label' => 'Grade 9-12'],
+      ['id' => 21, 'label' => 'Graduate'],
+      ['id' => 16, 'label' => 'Pre-K to Grade 2'],
+      ['id' => 20, 'label' => 'Undergraduate'],
     ];
 
     $difficulties = [
-      ['id' => 21, 'label' => 'Easy'],
-      ['id' => 22, 'label' => 'Medium'],
-      ['id' => 23, 'label' => 'Hard'],
+      ['id' => 12, 'label' => 'Easy'],
+      ['id' => 13, 'label' => 'Medium'],
+      ['id' => 14, 'label' => 'Hard'],
     ];
 
     $cognitive_goals = [
-      ['id' => 24, 'label' => 'Remember'],
-      ['id' => 25, 'label' => 'Understand'],
-      ['id' => 26, 'label' => 'Apply'],
-      ['id' => 27, 'label' => 'Analyze'],
-      ['id' => 28, 'label' => 'Evaluate'],
-      ['id' => 29, 'label' => 'Create'],
+      ['id' => 6, 'label' => 'Remember'],
+      ['id' => 7, 'label' => 'Understand'],
+      ['id' => 8, 'label' => 'Apply'],
+      ['id' => 9, 'label' => 'Analyze'],
+      ['id' => 10, 'label' => 'Evaluate'],
+      ['id' => 11, 'label' => 'Create'],
     ];
 
     // Use timestamp for some randomness
@@ -494,49 +496,49 @@ class QuizMetadataService {
    */
   protected function generateEducationLevelSubjectAndDifficulty(): array {
     $education_levels = [
-      1 => "Any Level (general knowledge, broad appeal)",
-      2 => "Pre-K to Grade 2 (early childhood, basic concepts)",
-      3 => "Grade 3-5 (elementary, foundational skills)",
-      4 => "Grade 6-8 (middle school, developing complexity)",
-      5 => "Grade 9-12 (high school, advanced concepts)",
-      6 => "Undergraduate (college-level, specialized knowledge)",
-      7 => "Graduate (advanced study, research-level)",
-      8 => "Adult Learning (professional development, continuing education)"
+      15 => "Any Level (general knowledge, broad appeal)",
+      16 => "Pre-K to Grade 2 (early childhood, basic concepts)",
+      17 => "Grade 3-5 (elementary, foundational skills)",
+      18 => "Grade 6-8 (middle school, developing complexity)",
+      19 => "Grade 9-12 (high school, advanced concepts)",
+      20 => "Undergraduate (college-level, specialized knowledge)",
+      21 => "Graduate (advanced study, research-level)",
+      22 => "Adult Learning (professional development, continuing education)"
     ];
 
     $subjects = [
-      9  => "Arts & Humanities",
-      10 => "Business & Economics",
-      11 => "Technology & Computer Science",
-      12 => "Education",
-      13 => "Health & Physical Education",
-      14 => "Language & Literacy",
-      15 => "Law & Political Science",
-      16 => "Mathematics",
-      17 => "Science",
-      18 => "Social Studies",
-      19 => "Professional & Career Studies",
-      20 => "Interdisciplinary / Other",
-      30 => "Environmental & Earth Studies",
-      31 => "Life Skills & Personal Development",
+      23 => "Arts & Humanities",
+      25 => "Business & Economics",
+      35 => "Technology & Computer Science",
+      26 => "Education",
+      28 => "Health & Physical Education",
+      29 => "Language & Literacy",
+      30 => "Law & Political Science",
+      31 => "Mathematics",
+      33 => "Science",
+      34 => "Social Studies",
+      32 => "Professional & Career Studies",
+      36 => "Interdisciplinary / Other",
+      27 => "Environmental & Earth Studies",
+      24 => "Life Skills & Personal Development",
     ];
 
     $difficulties = [
-      21 => "Easy (basic recall, simple concepts, introductory level)",
-      22 => "Medium (moderate complexity, some analysis required)",
-      23 => "Hard (advanced concepts, complex problem-solving)",
+      12 => "Easy (basic recall, simple concepts, introductory level)",
+      13 => "Medium (moderate complexity, some analysis required)",
+      14 => "Hard (advanced concepts, complex problem-solving)",
     ];
 
     // Map education levels to appropriate subjects
     $gradeToSubjects = [
-      1 => [9,10,11,13,14,16,17,18,20,30,31], // Any Level - exclude Law/Education/Professional
-      2 => [9,11,13,14,16,17,18,20,30,31],     // Pre-K to Grade 2 - basic subjects
-      3 => [9,10,11,13,14,16,17,18,20,30,31],  // Grade 3-5 - add Business basics
-      4 => [9,10,11,13,14,15,16,17,18,20,30,31], // Grade 6-8 - add Law/Political Science
-      5 => [9,10,11,13,14,15,16,17,18,19,20,30,31], // Grade 9-12 - add Professional Studies
-      6 => [9,10,11,12,13,14,15,16,17,18,19,20,30,31], // Undergraduate - add Education
-      7 => [9,10,11,12,13,14,15,16,17,18,19,20,30,31], // Graduate - all subjects
-      8 => [9,10,11,12,13,14,15,16,17,18,19,20,30,31], // Adult Learning - all subjects
+      15 => [23,25,35,28,29,31,33,34,36,27,24], // Any Level - exclude Law/Education/Professional
+      16 => [23,35,28,29,31,33,34,36,27,24],     // Pre-K to Grade 2 - basic subjects
+      17 => [23,25,35,28,29,31,33,34,36,27,24],  // Grade 3-5 - add Business basics
+      18 => [23,25,35,28,29,30,31,33,34,36,27,24], // Grade 6-8 - add Law/Political Science
+      19 => [23,25,35,28,29,30,31,33,34,32,36,27,24], // Grade 9-12 - add Professional Studies
+      20 => [23,25,35,26,28,29,30,31,33,34,32,36,27,24], // Undergraduate - add Education
+      21 => [23,25,35,26,28,29,30,31,33,34,32,36,27,24], // Graduate - all subjects
+      22 => [23,25,35,26,28,29,30,31,33,34,32,36,27,24], // Adult Learning - all subjects
     ];
 
     // Pick random education level
@@ -551,9 +553,9 @@ class QuizMetadataService {
     // Pick random difficulty with weighted selection (favoring Medium)
     // Weight: Easy=1, Medium=2, Hard=1 (total=4)
     $difficulty_weights = [
-      21 => 1,  // Easy
-      22 => 4,  // Medium
-      23 => 1   // Hard
+      12 => 1,  // Easy
+      13 => 4,  // Medium
+      14 => 1   // Hard
     ];
 
     $expanded_difficulties = [];
@@ -609,19 +611,19 @@ REQUIRED DIFFICULTY LEVEL (already selected):
 Now choose COGNITIVE GOAL:
 
 COGNITIVE GOALS (choose one):
-- 24: Remember (recall facts, memorize information)
-- 25: Understand (comprehend concepts, explain ideas)
-- 26: Apply (use knowledge in new situations)
-- 27: Analyze (break down information, examine relationships)
-- 28: Evaluate (make judgments, assess quality)
-- 29: Create (produce new content, synthesize ideas)
+- 6: Remember (recall facts, memorize information)
+- 7: Understand (comprehend concepts, explain ideas)
+- 8: Apply (use knowledge in new situations)
+- 9: Analyze (break down information, examine relationships)
+- 10: Evaluate (make judgments, assess quality)
+- 11: Create (produce new content, synthesize ideas)
 
 Respond with EXACTLY this JSON format (replace the values but keep the structure):
 {
   \"subject\": {\"id\": {$subject['id']}, \"label\": \"{$subject['label']}\"},
   \"education_level\": {\"id\": {$education_level['id']}, \"label\": \"{$education_level['label']}\"},
   \"difficulty\": {\"id\": {$difficulty['id']}, \"label\": \"{$difficulty['label']}\"},
-  \"cognitive_goal\": {\"id\": 25, \"label\": \"Understand\"}
+  \"cognitive_goal\": {\"id\": 7, \"label\": \"Understand\"}
 }
 
 CRITICAL REQUIREMENTS:
