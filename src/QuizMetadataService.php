@@ -686,7 +686,7 @@ Generate EXACTLY THREE lines in this format (no more, no less):
 
 PROMPT: [Write a concise quiz prompt that defines what knowledge will be tested and the scope of content. Write professionally for educators. Keep under 256 words.]
 
-TITLE: [Write a concise, engaging title (max 100 characters) that reflects the content and is appropriate for the education level. Incorporate the cognitive goal when possible (e.g., \"Understanding...\", \"Analyzing...\", \"Applying...\")]
+TITLE: [Write a concise, engaging title (max 100 characters) that reflects the content and is appropriate for the education level.
 
 TAGS: [Generate 2-6 relevant keywords/tags separated by commas. Use single words or short phrases that describe key concepts, topics, or skills covered in the quiz. Make them searchable and relevant for educators.]
 
